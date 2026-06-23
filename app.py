@@ -20,13 +20,10 @@ show_chat = st.sidebar.checkbox("Enable AI Chat", True)
 
 # Title
 st.title("📊 Data Storytelling AI")
-st.caption("Upload CSV or PDF and get insights + AI chat")
+st.caption("Upload CSV or PDF and get insights")
 
 # Upload
 uploaded_file = st.file_uploader("Upload CSV or PDF", type=["csv", "pdf"])
-
-if uploaded_file is None:
-    st.info("👆 Upload a file to get started")
 
 if uploaded_file is not None:
 
@@ -60,20 +57,19 @@ if uploaded_file is not None:
                 result = generate_insights(df)
                 st.write(result)
 
-        # 🔥 AI CHAT FEATURE
+        # Chat
         if show_chat:
             st.subheader("💬 Chat with your Data")
-
-            user_question = st.text_input("Ask something about your data:")
+            question = st.text_input("Ask something about your data:")
 
             if st.button("Ask AI"):
-                if user_question:
-                    answer = chat_with_data(df, user_question)
+                if question:
+                    answer = chat_with_data(df, question)
                     st.success(answer)
                 else:
-                    st.warning("Please enter a question")
+                    st.warning("Enter a question")
 
-        # Download
+        # Download report
         if st.button("Download Report"):
             report = f"""
 DATA REPORT
@@ -96,13 +92,46 @@ Summary:
 
     # ================= PDF =================
     elif uploaded_file.name.endswith(".pdf"):
-        st.subheader("📄 PDF Preview")
 
-        st.write(f"File: {uploaded_file.name}")
-        st.write(f"Size: {uploaded_file.size/1024:.2f} KB")
+        import PyPDF2
 
-        st.info("⚠️ PDF analysis not supported yet. Convert to CSV.")
+        st.subheader("📄 PDF Analysis")
 
+        # Read PDF
+        pdf_reader = PyPDF2.PdfReader(uploaded_file)
+        text = ""
+
+        for page in pdf_reader.pages:
+            extracted = page.extract_text()
+            if extracted:
+                text += extracted
+
+        # Show preview
+        st.subheader("📜 Extracted Text (Preview)")
+        st.text_area("PDF Content", text[:2000], height=300)
+
+        # AI Insights for PDF
+        if st.button("Generate Insights from PDF"):
+
+            from openai import OpenAI
+            import os
+
+            client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": f"Analyze this document and give summary + insights:\n\n{text[:2000]}"
+                    }
+                ]
+            )
+
+            st.subheader("🧠 PDF Insights")
+            st.write(response.choices[0].message.content)
+
+        # Download PDF
         st.download_button(
             label="Download PDF",
             data=uploaded_file,
