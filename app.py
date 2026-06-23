@@ -3,114 +3,156 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import PyPDF2
-import io
 
 # 🔥 MUST BE FIRST
-st.set_page_config(page_title="Data Story AI", layout="wide")
+st.set_page_config(page_title="Data Story AI Pro", layout="wide")
 
-# Sidebar
-st.sidebar.title("⚙️ Options")
-show_data = st.sidebar.checkbox("Show Data Preview", True)
-show_graphs = st.sidebar.checkbox("Show Visualizations", True)
-show_insights = st.sidebar.checkbox("Show Insights", True)
+# ========== SESSION ==========
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
 
-# Title
-st.title("📊 Data Storytelling AI")
-st.markdown("## 📊 Smart Data Analysis & AI Insights")
-st.markdown("---")
+# ========== SIDEBAR ==========
+st.sidebar.title("🚀 Data Story AI")
+page = st.sidebar.radio("Navigate", [
+    "🏠 Home",
+    "📊 CSV Dashboard",
+    "💬 Chat with Data",
+    "📄 PDF Resume Analyzer"
+])
 
-# Upload (CSV + PDF)
-uploaded_file = st.file_uploader("Upload CSV or PDF", type=["csv", "pdf"])
+# ========== HOME ==========
+if page == "🏠 Home":
+    st.title("🚀 Data Storytelling AI PRO")
+    st.markdown("""
+    ### 💡 Features:
+    - 📊 Data Analysis Dashboard  
+    - 💬 Chat with your dataset  
+    - 📄 Resume Analyzer  
+    - 📈 Smart Visualizations  
+    """)
 
-# ================= CSV PART =================
-if uploaded_file is not None and uploaded_file.name.endswith(".csv"):
-    df = pd.read_csv(uploaded_file)
+# ========== CSV DASHBOARD ==========
+elif page == "📊 CSV Dashboard":
 
-    if show_data:
-        st.subheader("📁 Dataset Preview")
-        st.write(df.head())
+    file = st.file_uploader("Upload CSV", type=["csv"])
 
-    # Summary
-    st.subheader("📊 Summary Statistics")
-    st.write(df.describe())
+    if file:
+        df = pd.read_csv(file)
 
-    # Missing values
-    st.subheader("❌ Missing Values")
-    st.write(df.isnull().sum())
+        st.subheader("📊 KPI Dashboard")
 
-    # Visualization
-    if show_graphs:
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Rows", df.shape[0])
+        col2.metric("Columns", df.shape[1])
+        col3.metric("Missing", df.isnull().sum().sum())
+
+        st.subheader("📁 Data Preview")
+        st.dataframe(df.head())
+
         st.subheader("📈 Visualizations")
-        numeric_cols = df.select_dtypes(include=['int64','float64']).columns
 
-        for col in numeric_cols:
+        num_cols = df.select_dtypes(include=['int64','float64']).columns
+
+        for col in num_cols:
             fig, ax = plt.subplots()
             sns.histplot(df[col], kde=True, ax=ax)
-            ax.set_title(f"{col} Distribution")
+            ax.set_title(col)
             st.pyplot(fig)
 
-        # Correlation
-        if len(numeric_cols) > 1:
+        if len(num_cols) > 1:
             fig, ax = plt.subplots()
-            sns.heatmap(df[numeric_cols].corr(), annot=True, cmap="coolwarm", ax=ax)
+            sns.heatmap(df[num_cols].corr(), annot=True, cmap="coolwarm", ax=ax)
             st.pyplot(fig)
 
-    # FREE INSIGHTS
-    if show_insights and st.button("Generate Insights"):
-        st.subheader("🧠 Insights (FREE AI)")
+# ========== CHAT ==========
+elif page == "💬 Chat with Data":
 
-        st.write(f"✔ Dataset has {df.shape[0]} rows and {df.shape[1]} columns")
-        st.write(f"✔ Missing values: {df.isnull().sum().sum()}")
+    file = st.file_uploader("Upload CSV for Chat", type=["csv"])
 
-        means = df.mean(numeric_only=True)
-        st.write("📊 Average Values:")
-        st.write(means)
+    if file:
+        df = pd.read_csv(file)
 
-        st.write("🏆 Key Observations:")
-        for col in means.index:
-            st.write(f"• {col} average is {means[col]:.2f}")
+        st.subheader("💬 Ask Questions")
 
-        st.write("🚀 Recommendations:")
-        st.write("• Clean missing data if present")
-        st.write("• Focus on high-value features")
-        st.write("• Use correlation heatmap for relationships")
+        user_q = st.text_input("Ask (average steps, max sleep_hours, rows...)")
 
-# ================= PDF PART =================
-elif uploaded_file is not None and uploaded_file.name.endswith(".pdf"):
-    st.subheader("📄 PDF Preview & Insights")
+        if user_q:
+            user_q = user_q.lower()
+            answer = ""
 
-    pdf_reader = PyPDF2.PdfReader(uploaded_file)
-    text = ""
+            if "average" in user_q:
+                col = user_q.split()[-1]
+                if col in df.columns:
+                    answer = f"Average {col} = {df[col].mean():.2f}"
 
-    for page in pdf_reader.pages:
-        text += page.extract_text() + "\n"
+            elif "max" in user_q:
+                col = user_q.split()[-1]
+                if col in df.columns:
+                    answer = f"Max {col} = {df[col].max()}"
 
-    st.text_area("Extracted Text", text[:2000], height=300)
+            elif "min" in user_q:
+                col = user_q.split()[-1]
+                if col in df.columns:
+                    answer = f"Min {col} = {df[col].min()}"
 
-    if st.button("Generate Insights from PDF"):
-        st.subheader("🧠 PDF Insights (FREE)")
+            elif "rows" in user_q:
+                answer = f"Total rows = {df.shape[0]}"
 
-        word_count = len(text.split())
-        st.write(f"✔ Total words: {word_count}")
+            else:
+                answer = "Try: average steps, max sleep_hours"
 
-        st.write("📌 Key Insights:")
-        st.write("• This document contains textual information")
-        st.write("• Useful for summaries and keyword extraction")
-        st.write("• Can be further processed using NLP")
+            st.session_state.chat_history.append((user_q, answer))
 
-# ================= DOWNLOAD =================
-if uploaded_file is not None:
-    if st.button("Download Report"):
-        report = f"""
-        DATA REPORT
+        # Chat display
+        for q, a in st.session_state.chat_history:
+            st.markdown(f"**You:** {q}")
+            st.markdown(f"**AI:** {a}")
 
-        File: {uploaded_file.name}
+# ========== PDF ANALYZER ==========
+elif page == "📄 PDF Resume Analyzer":
 
-        """
+    file = st.file_uploader("Upload PDF Resume", type=["pdf"])
 
-        st.download_button(
-            label="Download TXT",
-            data=report,
-            file_name="report.txt",
-            mime="text/plain"
-        )
+    if file:
+        pdf = PyPDF2.PdfReader(file)
+        text = ""
+
+        for page in pdf.pages:
+            text += page.extract_text() or ""
+
+        st.subheader("📄 Resume Preview")
+        st.text_area("", text[:2000], height=300)
+
+        if st.button("Analyze Resume"):
+            st.subheader("🧠 Resume Insights")
+
+            text_lower = text.lower()
+
+            skills = [
+                "python","sql","excel","power bi",
+                "machine learning","data analysis",
+                "pandas","numpy","statistics"
+            ]
+
+            found = [s for s in skills if s in text_lower]
+
+            st.write("🎯 Skills Found:")
+            for s in found:
+                st.success(s)
+
+            score = min(len(found) * 12, 100)
+
+            st.write("📊 Resume Score")
+            st.progress(score)
+            st.write(f"{score}/100")
+
+            if score < 50:
+                st.warning("Add more technical skills")
+            else:
+                st.success("Strong resume!")
+
+# ========== REPORT ==========
+st.sidebar.markdown("---")
+if st.sidebar.button("📥 Download App Report"):
+    report = "Data Story AI Pro Report\n\nProject by Shivva Santhosh"
+    st.sidebar.download_button("Download", report, file_name="report.txt")
