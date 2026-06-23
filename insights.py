@@ -1,25 +1,47 @@
+from openai import OpenAI
+import os
+
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
 def generate_insights(df):
-    rows, cols = df.shape
-    missing = df.isnull().sum().sum()
+    data_sample = df.head(20).to_string()
 
-    numeric = df.select_dtypes(include=['number'])
+    prompt = f"""
+    Analyze this dataset and give insights:
 
-    return f"""
-📊 Dataset has {rows} rows and {cols} columns.
+    {data_sample}
 
-❌ Missing values: {missing}
+    Give:
+    - Summary
+    - Patterns
+    - Recommendations
+    """
 
-📈 Avg values:
-{numeric.mean().to_string()}
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}]
+    )
 
-📊 Max values:
-{numeric.max().to_string()}
+    return response.choices[0].message.content
 
-💡 Insight:
-- Some features have high variation
-- Trends can be identified using charts
 
-🚀 Recommendation:
-- Clean missing values
-- Focus on high-value columns
-"""
+# 🔥 NEW FUNCTION (CHAT)
+def chat_with_data(df, question):
+    data_sample = df.head(20).to_string()
+
+    prompt = f"""
+    Dataset:
+    {data_sample}
+
+    User question:
+    {question}
+
+    Answer clearly based on data.
+    """
+
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}]
+    )
+
+    return response.choices[0].message.content
